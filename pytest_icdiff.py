@@ -2,6 +2,7 @@
 import shutil
 from pprintpp import pformat
 import icdiff
+from copy import deepcopy, _deepcopy_dispatch
 
 COLS = shutil.get_terminal_size().columns
 MARGIN_L = 10
@@ -25,6 +26,13 @@ def pytest_assertrepr_compare(config, op, left, right):
         pass
 
     half_cols = COLS / 2 - MARGINS
+
+    # Temporarily patch copy function for str
+    str_atomic = _deepcopy_dispatch[str]
+    _deepcopy_dispatch[str] = lambda x, memo: PrettyStr(x)
+    left = deepcopy(left)
+    right = deepcopy(right)
+    _deepcopy_dispatch[str] = str_atomic
 
     pretty_left = pformat(left, indent=2, width=half_cols).splitlines()
     pretty_right = pformat(right, indent=2, width=half_cols).splitlines()
@@ -57,3 +65,15 @@ def pytest_assertrepr_compare(config, op, left, right):
         icdiff_lines = list(differ.make_table(pretty_left, pretty_right, context=True))
 
     return ["equals failed"] + [color_off + l for l in icdiff_lines]
+
+
+class PrettyStr(str):
+    def __repr__(self):
+        # Add a newline indication to all but the last line
+        lines = self.splitlines()
+        lines = list(map(self._pretty_line, lines[:-1])) + [repr(lines[-1])]
+        return '\n'.join(lines)
+    @staticmethod
+    def _pretty_line(x):
+        r = repr(x)
+        return r[:-1] + '\n' + r[-1:]

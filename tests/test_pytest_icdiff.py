@@ -289,3 +289,16 @@ def test_really_long_diffs_use_context_mode(testdir):
     output = testdir.runpytest('-vv', '--color=yes').stdout.str()
     assert len(output.splitlines()) < 50
     assert "---" in output  # context split marker
+
+def test_pretty_strings(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_one():
+            one = '\\n'.join(str(i) for i in range(30))
+            two = '\\n'.join(str(i) for i in range(1, 31))
+            assert one == two
+        """
+    )
+    output = testdir.runpytest('-vv', '--color=yes').stdout.str()
+    assert len(output.splitlines()) > 10
+    assert "---" in output
